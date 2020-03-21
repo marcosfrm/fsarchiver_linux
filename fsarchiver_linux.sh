@@ -1,10 +1,7 @@
 #!/bin/bash
 
 # Marcos FRM
-# 01/03/2019
-
-# Rótulo do pendrive
-PENROTULO="SYSRCD"
+# 21/03/2020
 
 # Nome do arquivo com a imagem do FSArchiver, presente na raiz do pendrive
 ARQUIVOFSA="linux.fsa"
@@ -19,19 +16,16 @@ unset FSNOVO
 unset FSAOPT
 PASSADAS=0
 
-modprobe pcspkr 2>/dev/null
-
-PENMNT="/mnt/pen-$RANDOM"
+PENMNT="/run/archiso/bootmnt"
 DESTMNT="/mnt/dest-$RANDOM"
 
 mostraerro() {
-    umount -R $DESTMNT $PENMNT 2>/dev/null
-    rmdir $DESTMNT $PENMNT 2>/dev/null
+    umount -R $DESTMNT 2>/dev/null
+    rmdir $DESTMNT 2>/dev/null
 
     echo      >&2
     echo "$1" >&2
     echo      >&2
-    beep -l 300
     exit 1
 }
 
@@ -56,17 +50,11 @@ calctam() {
     fi
 }
 
-[[ $(uname -m) == x86_64 ]] || mostraerro "Linux 64-bit requerido."
-
-PENDEV=$(blkid -L "$PENROTULO")
-[[ -b $PENDEV ]] || mostraerro "Pendrive não encontrado."
-
-mkdir -p $PENMNT $DESTMNT
-mount $PENDEV $PENMNT 2>/dev/null || mostraerro "Falha ao montar pendrive."
+[[ $(uname -m) == x86_64 ]]    || mostraerro "Linux x86_64 requerido."
+mountpoint -q $PENMNT          || mostraerro "Pendrive não encontrado. Não use \"copytoram\"."
+[[ -r "$PENMNT/$ARQUIVOFSA" ]] || mostraerro "Arquivo de imagem inexistente."
 
 echo -e "\nPendrive:\t$PENMNT\nDestino:\t$DESTMNT\n"
-
-[[ -r "$PENMNT/$ARQUIVOFSA" ]] || mostraerro "Arquivo de imagem inexistente."
 
 if FSAINFO=$(LANG=C fsarchiver archinfo "$PENMNT/$ARQUIVOFSA" 2>&1); then
     FSORIG=$(awk -F':[[:blank:]]*' '/^Filesystem format/ {print $2}' <<< "$FSAINFO")
@@ -78,6 +66,8 @@ if FSAINFO=$(LANG=C fsarchiver archinfo "$PENMNT/$ARQUIVOFSA" 2>&1); then
 else
     mostraerro "Arquivo não é uma imgem do FSArchiver."
 fi
+
+PENDEV=$(findmnt -rno SOURCE -M $PENMNT)
 
 # util-linux >= 2.22
 for DISCO in $(lsblk -I 8 -drno NAME); do
@@ -218,9 +208,10 @@ fsarchiver -j $(nproc) restfs "$PENMNT/$ARQUIVOFSA" id=0,dest=${DEV}1$FSAOPT || 
 
 echo
 echo "Definindo configurações..."
+DESTMNTOPTS='-o X-mount.mkdir'
 # ReiserFS precisa de opções de montagem para habilitar ACLs e XATTRs
 if [[ ( ! $FSNOVO && $FSORIG == reiserfs ) || $FSNOVO == reiserfs ]]; then
-    DESTMNTOPTS='-o acl,user_xattr'
+    DESTMNTOPTS+=',acl,user_xattr'
 fi
 mount ${DEV}1 $DESTMNT $DESTMNTOPTS 2>/dev/null || mostraerro "Falha ao montar destino."
 mount --bind /dev $DESTMNT/dev
@@ -318,6 +309,7 @@ fi
 echo
 echo "Desmontando tudo..."
 # util-linux >= 2.23
-umount -Rv $DESTMNT $PENMNT || mostraerro "Falha ao desmontar."
+umount -Rv $DESTMNT || mostraerro "Falha ao desmontar."
+rmdir $DESTMNT
 
 reboot
