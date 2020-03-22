@@ -1,14 +1,13 @@
 #!/bin/bash
 
 # Marcos FRM
-# 21/03/2020
+# 22/03/2020
 
 # Nome do arquivo com a imagem do FSArchiver, presente na raiz do pendrive
 ARQUIVOFSA="linux.fsa"
 
 # --------------------------------------
 
-unset DESTMNTOPTS
 unset MUDAUUID
 unset MUDAFS
 unset LISTAFS
@@ -20,7 +19,6 @@ PENMNT="/run/archiso/bootmnt"
 DESTMNT="/mnt/dest-$RANDOM"
 
 mostraerro() {
-    umount -R $DESTMNT 2>/dev/null
     rmdir $DESTMNT 2>/dev/null
 
     echo      >&2
@@ -220,10 +218,12 @@ mount --bind /sys $DESTMNT/sys
 
 rm -f $DESTMNT/.readahead
 rm -f $DESTMNT/var/lib/ureadahead/pack
-rm -f $DESTMNT/etc/NetworkManager/system-connections/*
 find $DESTMNT/var/log/journal -mindepth 1 -maxdepth 1 -type d -not -name remote -exec rm -rf {} + 2>/dev/null
 rm -rf $DESTMNT/var/log/journal/remote/*
 rm -f $DESTMNT/etc/udev/rules.d/70-persistent-net.rules
+
+rm -f $DESTMNT/etc/NetworkManager/system-connections/*
+sed -i '/^no-auto-default=/d' $DESTMNT/etc/NetworkManager/NetworkManager.conf 2>/dev/null
 
 if [[ $FSNOVO ]]; then
     sed -i "/$UUIDORIG/ s/$FSORIG/$FSNOVO/" $DESTMNT/etc/fstab
@@ -254,8 +254,6 @@ fi
 case $ID in
     fedora|centos)
         find $DESTMNT/etc/sysconfig/network-scripts -type f -name 'ifcfg-*' -a -not -name 'ifcfg-lo' -delete
-        [[ -f $DESTMNT/etc/NetworkManager/NetworkManager.conf ]] && \
-            echo -e '[main]\nplugins=ifcfg-rh' > $DESTMNT/etc/NetworkManager/NetworkManager.conf
         for RDLISTA in $DESTMNT/boot/initramfs*; do
             # initramfs genérico (--no-hostonly), não precisa ser recriado
             [[ ${RDLISTA##*/} =~ rescue ]] && continue
@@ -266,32 +264,14 @@ case $ID in
     ;;
     opensuse)
         find $DESTMNT/etc/sysconfig/network -type f -name 'ifcfg-*' -a -not -name 'ifcfg-lo' -delete
-        [[ -f $DESTMNT/etc/NetworkManager/NetworkManager.conf ]] && \
-            echo -e '[main]\nplugins=ifcfg-suse,keyfile' > $DESTMNT/etc/NetworkManager/NetworkManager.conf
         # no openSUSE 13.2+, mkinitrd é um shell script que chama o dracut com os parâmetros adequados
         chroot $DESTMNT mkinitrd -B
     ;;
-    debian)
+    debian|ubuntu)
         rm -f $DESTMNT/etc/network/interfaces.d/*
-        [[ -f $DESTMNT/etc/NetworkManager/NetworkManager.conf ]] && \
-            echo -e '[main]\nplugins=ifupdown,keyfile\n\n[ifupdown]\nmanaged=false' \
-                > $DESTMNT/etc/NetworkManager/NetworkManager.conf
-        chroot $DESTMNT update-initramfs -u -k all
-    ;;
-    ubuntu)
-        rm -f $DESTMNT/etc/network/interfaces.d/*
-        [[ -f $DESTMNT/etc/NetworkManager/NetworkManager.conf ]] && \
-            echo -e '[main]\nplugins=ifupdown,keyfile,ofono\ndns=dnsmasq\n\n[ifupdown]\nmanaged=false' \
-                > $DESTMNT/etc/NetworkManager/NetworkManager.conf
         chroot $DESTMNT update-initramfs -u -k all
     ;;
     arch)
-        if [[ -f $DESTMNT/etc/NetworkManager/NetworkManager.conf ]]; then
-            # no Arch, nada de tralhas (resolvconf, netconfig)
-            echo -e '[main]\nplugins=keyfile\nrc-manager=symlink' \
-                > $DESTMNT/etc/NetworkManager/NetworkManager.conf
-            rm -f $DESTMNT/etc/resolv.conf.bak
-        fi
         chroot $DESTMNT mkinitcpio -p linux
     ;;
 esac
