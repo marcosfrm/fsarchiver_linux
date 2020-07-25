@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Marcos FRM
-# 22/03/2020
+# 25/07/2020
 
 # Nome do arquivo com a imagem do FSArchiver, presente na raiz do pendrive
 ARQUIVOFSA="linux.fsa"
@@ -187,9 +187,9 @@ done
 
 echo
 echo "Particionando..."
-# util-linux >= 2.30
-# https://github.com/karelzak/util-linux/commit/bb88152764837a579cb7a2b3ba3e979963419bed
-echo ',,L,*' | flock $DEV sfdisk --quiet --wipe=always --wipe-partitions=always --label=dos $DEV
+# util-linux >= 2.36
+# https://github.com/karelzak/util-linux/commit/c3ef1268a0b4b0d01dd76043a865b4acf144f3c9
+echo ',,L,*' | sfdisk --quiet --lock=yes --wipe=always --wipe-partitions=always --label=dos $DEV
 udevadm settle
 
 echo
