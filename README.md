@@ -2,4 +2,4 @@ Shell script que uso no SystemRescueCD para restaurar imagem do FSArchiver, cont
 
 Não suporta UEFI.
 
-Para usá-lo, renomeie o script para `autorun` e copie-o para a raiz do pendrive onde está o SystemRescueCD (6.1.1 ou superior), junto com a imagem do FSArchiver. **Não** use a opção de boot `copytoram`.
+Para usá-lo, renomeie o script para `autorun` e copie-o para a raiz do pendrive onde está o SystemRescueCD (6.1.7 ou superior), junto com a imagem do FSArchiver. **Não** use a opção de boot `copytoram`.
