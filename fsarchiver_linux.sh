@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# Marcos FRM
-# 08/06/2021
-
 # Nome do arquivo com a imagem do FSArchiver, presente na raiz do pendrive
 ARQUIVOFSA="linux.fsa"
 
@@ -70,7 +67,7 @@ if FSAINFO=$(LANG=C fsarchiver archinfo "$PENMNT/$ARQUIVOFSA" 2>&1); then
     [[ ${FSORIG[raiz]} =~ ext[2-4]|xfs|btrfs|jfs|reiserfs ]] || \
         mostraerro "Imagem não contém um sistema de arquivos suportado (EXT2/3/4, XFS, Btrfs, JFS ou ReiserFS)."
 else
-    mostraerro "Arquivo não é uma imgem do FSArchiver."
+    mostraerro "Arquivo não é uma imagem do FSArchiver."
 fi
 
 PENDEV=$(findmnt -rno SOURCE -M $PENMNT)
@@ -329,7 +326,7 @@ fi
 echo
 echo "Desmontando tudo..."
 # util-linux >= 2.23
-umount -Rv $DESTMNT || mostraerro "Falha ao desmontar."
+umount -Rv $DESTMNT || mostraerro "Falha ao desmontar destino."
 rmdir $DESTMNT
 
 reboot
