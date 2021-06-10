@@ -6,7 +6,8 @@
 # Nome do arquivo com a imagem do FSArchiver, presente na raiz do pendrive
 ARQUIVOFSA="linux.fsa"
 
-# Ponto de montagam da partição EFI no sistema restaurado
+# Ponto de montagem da partição EFI no sistema restaurado. As distribuições principais
+# usam /boot/efi, porém é possível personalizar o Arch para usar /boot diretamente
 ESPMNT='/boot/efi'
 
 # --------------------------------------
