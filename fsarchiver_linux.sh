@@ -5,7 +5,7 @@ ARQUIVOFSA="linux.fsa"
 
 # Ponto de montagem da partição EFI no sistema restaurado. As distribuições principais
 # usam /boot/efi, porém é possível personalizar o Arch para usar /boot diretamente
-ESPMNT='/boot/efi'
+ESPMNT="/boot/efi"
 
 # --------------------------------------
 
@@ -65,7 +65,7 @@ if FSAINFO=$(LANG=C fsarchiver archinfo "$PENMNT/$ARQUIVOFSA" 2>&1); then
     FSORIG[raiz]=$(awk -F ':[[:blank:]]*' '/^Filesystem format/ {print $2}' <<< "${IMGINFO[raiz]}")
     UUIDORIG[raiz]=$(awk -F ':[[:blank:]]*' '/^Filesystem uuid/ {print $2}' <<< "${IMGINFO[raiz]}")
     [[ ${FSORIG[raiz]} =~ ext[2-4]|xfs|btrfs|jfs|reiserfs ]] || \
-        mostraerro "Imagem não contém um sistema de arquivos suportado (EXT2/3/4, XFS, Btrfs, JFS ou ReiserFS)."
+        mostraerro "Imagem não contém sistema de arquivos suportado (EXT2/3/4, XFS, Btrfs, JFS ou ReiserFS)."
 else
     mostraerro "Arquivo não é uma imagem do FSArchiver."
 fi
@@ -231,9 +231,9 @@ echo
 echo "Definindo configurações..."
 DESTMNTOPTS='-o X-mount.mkdir'
 # ReiserFS precisa de opções de montagem para habilitar ACLs e XATTRs
-if [[ ( ! ${FSNOVO[raiz]} && ${FSORIG[raiz]} == reiserfs ) || ${FSNOVO[raiz]} == reiserfs ]]; then
+[[ ( ! ${FSNOVO[raiz]} && ${FSORIG[raiz]} == reiserfs ) || ${FSNOVO[raiz]} == reiserfs ]] && \
     DESTMNTOPTS+=',acl,user_xattr'
-fi
+
 mount ${PART[raiz]} $DESTMNT $DESTMNTOPTS 2>/dev/null || mostraerro "Falha ao montar destino (raiz)."
 
 if [[ ${IMGINFO[esp]} ]]; then
@@ -243,6 +243,7 @@ fi
 mount --bind /dev $DESTMNT/dev
 mount --bind /proc $DESTMNT/proc
 mount --bind /sys $DESTMNT/sys
+mount --bind /run $DESTMNT/run
 
 rm -f $DESTMNT/.readahead
 rm -f $DESTMNT/var/lib/ureadahead/pack
@@ -289,13 +290,7 @@ fi
 case $ID in
     fedora|centos)
         find $DESTMNT/etc/sysconfig/network-scripts -type f -name 'ifcfg-*' -a -not -name 'ifcfg-lo' -delete
-        for RDLISTA in $DESTMNT/boot/initramfs*; do
-            # initramfs genérico (--no-hostonly), não precisa ser recriado
-            [[ ${RDLISTA##*/} =~ rescue ]] && continue
-            KVER=$(sed 's/^initramfs-//;s/\.img$//' <<< ${RDLISTA##*/})
-            [[ -d $DESTMNT/usr/lib/modules/${KVER:-xyz} ]] && \
-                chroot $DESTMNT dracut --force /boot/${RDLISTA##*/} $KVER
-        done
+        chroot $DESTMNT dracut --regenerate-all --force
     ;;
     opensuse)
         find $DESTMNT/etc/sysconfig/network -type f -name 'ifcfg-*' -a -not -name 'ifcfg-lo' -delete
@@ -307,7 +302,7 @@ case $ID in
         chroot $DESTMNT update-initramfs -u -k all
     ;;
     arch)
-        chroot $DESTMNT mkinitcpio -p linux
+        chroot $DESTMNT mkinitcpio -P
     ;;
 esac
 
