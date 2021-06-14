@@ -7,7 +7,10 @@ ARQUIVOFSA="linux.fsa"
 # usam /boot/efi, porém é possível personalizar o Arch para usar /boot diretamente
 ESPMNT="/boot/efi"
 
-# --------------------------------------
+# ----------------------------------------------------
+
+# Ambos bagunçam o terminal e não são importantes para este script
+systemctl -q disable --now NetworkManager-dispatcher.service pacman-init.service
 
 declare -A IMGINFO FSORIG FSNOVO UUIDORIG UUIDNOVO PART
 PASSADAS=0
@@ -192,6 +195,11 @@ done
 
 echo
 echo "Particionando..."
+# https://github.com/marcosfrm/limpadsk
+if command -v limpadsk >/dev/null; then
+    limpadsk $DEV
+    udevadm settle
+fi
 # util-linux >= 2.36
 if [[ ${IMGINFO[esp]} ]]; then
     # ESP de 500 MiB
@@ -215,8 +223,8 @@ fi
 fsarchiver -j $(nproc) restfs "$PENMNT/$ARQUIVOFSA" id=0,dest=${PART[raiz]}${FSAOPT} || \
     mostraerro "Falha ao restaurar imagem (raiz)."
 
-FSAOPT=
 if [[ ${IMGINFO[esp]} ]]; then
+    FSAOPT=
     if [[ $MUDAUUID ]]; then
         UUIDNOVO[esp]=$(openssl rand -hex 4 | tr '[:lower:]' '[:upper:]')
         # https://github.com/fdupoux/fsarchiver/pull/106
@@ -240,10 +248,9 @@ if [[ ${IMGINFO[esp]} ]]; then
     mount ${PART[esp]} ${DESTMNT}${ESPMNT} -o 'utf8,iocharset=ascii' 2>/dev/null || \
         mostraerro "Falha ao montar destino (esp)."
 fi
-mount --bind /dev $DESTMNT/dev
-mount --bind /proc $DESTMNT/proc
-mount --bind /sys $DESTMNT/sys
-mount --bind /run $DESTMNT/run
+for PM in dev proc sys run; do
+    mount --bind /$PM $DESTMNT/$PM
+done
 
 rm -f $DESTMNT/.readahead
 rm -f $DESTMNT/var/lib/ureadahead/pack
@@ -257,7 +264,7 @@ sed -i '/^no-auto-default=/d' $DESTMNT/etc/NetworkManager/NetworkManager.conf 2>
 if [[ ${FSNOVO[raiz]} ]]; then
     sed -i "/${UUIDORIG[raiz]}/ s/${FSORIG[raiz]}/${FSNOVO[raiz]}/" $DESTMNT/etc/fstab
     # ReiserFS: "acl,user_xattr", "user_xattr,acl", "acl", "user_xattr"
-    # outros sistemas: "defaults"
+    # Outros sistemas: "defaults"
     if [[ ${FSORIG[raiz]} == reiserfs ]]; then
         sed -ri "/${UUIDORIG[raiz]}/ s/[[:blank:]]+(acl(,user_xattr)?|user_xattr(,acl)?)[[:blank:]]+/\tdefaults\t/" \
             $DESTMNT/etc/fstab
@@ -268,13 +275,13 @@ if [[ ${FSNOVO[raiz]} ]]; then
 fi
 
 if [[ $MUDAUUID ]]; then
+    sed -i "s/${UUIDORIG[raiz]}/${UUIDNOVO[raiz]}/" $DESTMNT/etc/fstab
     if [[ ${IMGINFO[esp]} ]]; then
         # 12345678 -> 1234-5678
         UUIDORIG[esp]=$(printf '%s-%s' ${UUIDORIG[esp]:0:4} ${UUIDORIG[esp]:4:4})
         UUIDNOVO[esp]=$(printf '%s-%s' ${UUIDNOVO[esp]:0:4} ${UUIDNOVO[esp]:4:4})
         sed -i "s/${UUIDORIG[esp]}/${UUIDNOVO[esp]}/" $DESTMNT/etc/fstab
     fi
-    sed -i "s/${UUIDORIG[raiz]}/${UUIDNOVO[raiz]}/" $DESTMNT/etc/fstab
 
     [[ -e $DESTMNT/var/lib/dbus/machine-id && ! -L $DESTMNT/var/lib/dbus/machine-id ]] && \
         dbus-uuidgen > $DESTMNT/var/lib/dbus/machine-id
@@ -288,11 +295,11 @@ fi
 
 # initramfs são regerados por último, depois das mudanças de UUID/machine-id/hostname terem sido aplicadas
 case $ID in
-    fedora|centos)
+    fedora|centos|ol)
         find $DESTMNT/etc/sysconfig/network-scripts -type f -name 'ifcfg-*' -a -not -name 'ifcfg-lo' -delete
         chroot $DESTMNT dracut --regenerate-all --force
     ;;
-    opensuse)
+    opensuse*)
         find $DESTMNT/etc/sysconfig/network -type f -name 'ifcfg-*' -a -not -name 'ifcfg-lo' -delete
         # no openSUSE 13.2+, mkinitrd é um shell script que chama o dracut com os parâmetros adequados
         chroot $DESTMNT mkinitrd -B
