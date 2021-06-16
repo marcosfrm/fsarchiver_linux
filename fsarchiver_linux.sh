@@ -295,14 +295,13 @@ fi
 
 # initramfs são regerados por último, depois das mudanças de UUID/machine-id/hostname terem sido aplicadas
 case $ID in
-    fedora|centos|ol)
+    fedora|centos|ol|mageia)
         find $DESTMNT/etc/sysconfig/network-scripts -type f -name 'ifcfg-*' -a -not -name 'ifcfg-lo' -delete
         chroot $DESTMNT dracut --regenerate-all --force
     ;;
     opensuse*)
         find $DESTMNT/etc/sysconfig/network -type f -name 'ifcfg-*' -a -not -name 'ifcfg-lo' -delete
-        # no openSUSE 13.2+, mkinitrd é um shell script que chama o dracut com os parâmetros adequados
-        chroot $DESTMNT mkinitrd -B
+        chroot $DESTMNT dracut --regenerate-all --force
     ;;
     debian|ubuntu)
         rm -f $DESTMNT/etc/network/interfaces.d/*

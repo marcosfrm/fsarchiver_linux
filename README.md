@@ -10,4 +10,4 @@ Para usá-lo, renomeie o script para `autorun` e copie-o para a raiz do pendrive
 
 Qualquer outra partição não é suportada, incluindo swap.
 
-O script não faz diferenciação pelo modo em que o SystemRescue foi inicializado (BIOS/CSM ou UEFI). No caso de instalações UEFI, será possível restaurá-las mesmo inicializando com BIOS/CSM, pois não mexe nas variáveis do firmware.
+O script não faz diferenciação pelo modo em que o SystemRescue foi inicializado (BIOS/CSM ou UEFI). No caso de instalações UEFI, será possível restaurá-las mesmo inicializando via BIOS/CSM, pois não mexe nas variáveis do firmware.
