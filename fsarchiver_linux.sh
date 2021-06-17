@@ -302,6 +302,8 @@ case $ID in
     opensuse*)
         find $DESTMNT/etc/sysconfig/network -type f -name 'ifcfg-*' -a -not -name 'ifcfg-lo' -delete
         chroot $DESTMNT dracut --regenerate-all --force
+        # Usado na configuração do GRUB, sem sufixo -leap ou -tumbleweed
+        ID=opensuse
     ;;
     debian|ubuntu)
         rm -f $DESTMNT/etc/network/interfaces.d/*
@@ -312,15 +314,27 @@ case $ID in
     ;;
 esac
 
-if [[ ! ${IMGINFO[esp]} ]]; then
-    echo
-    echo "Instalando GRUB..."
-    if [[ $ID == debian || $ID == ubuntu || $ID == arch ]]; then
-        [[ $MUDAUUID ]] && chroot $DESTMNT grub-mkconfig -o /boot/grub/grub.cfg
-        chroot $DESTMNT grub-install --recheck --no-floppy $DEV
-    else
-        [[ $MUDAUUID ]] && chroot $DESTMNT grub2-mkconfig -o /boot/grub2/grub.cfg
-        chroot $DESTMNT grub2-install --recheck --no-floppy $DEV
+export PATH=${PATH}:/usr/sbin
+
+echo
+echo "Instalando GRUB..."
+[[ $ID == debian || $ID == ubuntu || $ID == arch ]] && GRUBPRE=grub || GRUBPRE=grub2
+GRUBDIR=/boot/$GRUBPRE
+# BIOS/CSM apenas; em UEFI não instalamos coisa alguma; distribuições que não configuram o
+# fallback EFI/boot/bootx64.efi na ESP (Mageia 8, por exemplo) precisarão de intervenção manual
+[[ ${IMGINFO[esp]} ]] || chroot $DESTMNT ${GRUBPRE}-install --recheck --no-floppy $DEV
+if [[ $MUDAUUID ]]; then
+    chroot $DESTMNT ${GRUBPRE}-mkconfig -o $GRUBDIR/grub.cfg
+    # https://fedoraproject.org/wiki/Changes/UnifyGrubConfig em todas as instalações
+    # openSUSE adota essa configuração (usando "source" no lugar de "configfile") pelo
+    # menos desde o Leap 15.0
+    if [[ ${IMGINFO[esp]} && -e $DESTMNT/boot/efi/EFI/${ID:-$RANDOM}/grub.cfg ]]; then
+cat << EOF > $DESTMNT/boot/efi/EFI/$ID/grub.cfg
+search --no-floppy --fs-uuid --set=dev ${UUIDNOVO[raiz]}
+set prefix=(\$dev)$GRUBDIR
+export \$prefix
+configfile \$prefix/grub.cfg
+EOF
     fi
 fi
 
