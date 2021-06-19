@@ -317,24 +317,32 @@ esac
 export PATH=${PATH}:/usr/sbin
 
 echo
-echo "Instalando GRUB..."
+echo "Instalando/configurando GRUB..."
 [[ $ID == debian || $ID == ubuntu || $ID == arch ]] && GRUBPRE=grub || GRUBPRE=grub2
 GRUBDIR=/boot/$GRUBPRE
-# BIOS/CSM apenas; em UEFI não instalamos coisa alguma; distribuições que não configuram o
-# fallback EFI/boot/bootx64.efi na ESP (Mageia 8, por exemplo) precisarão de intervenção manual
-[[ ${IMGINFO[esp]} ]] || chroot $DESTMNT ${GRUBPRE}-install --recheck --no-floppy $DEV
+# BIOS/CSM apenas; em UEFI não instalamos coisa alguma; distribuições que não configuram o fallback
+# EFI/boot/bootx64.efi na ESP (Mageia 8, por exemplo) precisarão de intervenção manual; Debian por
+# padrão também não o faz, porém parece oferecer uma opção para tal fim
+#
+# grub-install não funciona em distribuições com suporte ao secure boot, pois o binário grubx64.efi é
+# assinado e tem todos os drivers suportados pela distribuição embutidos; não rodar, por outro lado,
+# grub-install em distribuições *sem* suporte ao secure boot, ou seja, cujo grubx64.efi seja criado
+# localmente usando os drivers de /usr/lib/grub/x86_64-efi, significa que, caso o sistema de arquivos seja
+# alterado, o driver requerido não fará parte do binário e a inicialização provavelmente falhará
+[[ ${IMGINFO[esp]} ]] || chroot $DESTMNT ${GRUBPRE}-install --recheck $DEV
+
 if [[ $MUDAUUID ]]; then
-    chroot $DESTMNT ${GRUBPRE}-mkconfig -o $GRUBDIR/grub.cfg
-    # https://fedoraproject.org/wiki/Changes/UnifyGrubConfig em todas as instalações
-    # openSUSE adota essa configuração (usando "source" no lugar de "configfile") pelo
-    # menos desde o Leap 15.0
-    if [[ ${IMGINFO[esp]} && -e $DESTMNT/boot/efi/EFI/${ID:-$RANDOM}/grub.cfg ]]; then
-cat << EOF > $DESTMNT/boot/efi/EFI/$ID/grub.cfg
-search --no-floppy --fs-uuid --set=dev ${UUIDNOVO[raiz]}
-set prefix=(\$dev)$GRUBDIR
-export \$prefix
-configfile \$prefix/grub.cfg
-EOF
+    # BIOS/CSM e UEFI com configuração unificada
+    [[ -e ${DESTMNT}${GRUBDIR}/grub.cfg ]] && chroot $DESTMNT ${GRUBPRE}-mkconfig -o $GRUBDIR/grub.cfg
+
+    if [[ ${IMGINFO[esp]} && -e ${DESTMNT}${ESPMNT}/EFI/${ID:-$RANDOM}/grub.cfg ]]; then
+        # Heurística: se for menor que 300 bytes, assumimos arquivo stub
+        # https://fedoraproject.org/wiki/Changes/UnifyGrubConfig
+        if (( $(stat -c '%s' ${DESTMNT}${ESPMNT}/EFI/$ID/grub.cfg) < 300 )); then
+            sed -i "s/${UUIDORIG[raiz]}/${UUIDNOVO[raiz]}/" ${DESTMNT}${ESPMNT}/EFI/$ID/grub.cfg
+        else
+            chroot $DESTMNT ${GRUBPRE}-mkconfig -o $ESPMNT/EFI/$ID/grub.cfg
+        fi
     fi
 fi
 
