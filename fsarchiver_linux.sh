@@ -3,8 +3,7 @@
 # Nome do arquivo com a imagem do FSArchiver, presente na raiz do pendrive
 ARQUIVOFSA="linux.fsa"
 
-# Ponto de montagem da partição EFI no sistema restaurado. As distribuições principais
-# usam /boot/efi, porém é possível personalizar o Arch para usar /boot diretamente
+# Ponto de montagem da partição EFI no sistema restaurado; as distribuições principais usam /boot/efi
 ESPMNT="/boot/efi"
 
 # ----------------------------------------------------
@@ -45,6 +44,13 @@ calctam() {
     else
         echo "???   "
     fi
+}
+
+# Gambiarra para preservar o contexto SELinux dos arquivos, visto que o sed do SystemRescue não o faz
+meu_sed_ri() {
+    local ARQTMP=$(mktemp)
+    sed -r "$1" "$2" > $ARQTMP 2>/dev/null && ! cmp -s "$2" $ARQTMP && cat $ARQTMP > "$2"
+    rm -f $ARQTMP
 }
 
 [[ $(uname -m) == x86_64 ]]    || mostraerro "Linux x86_64 requerido."
@@ -259,28 +265,28 @@ rm -rf $DESTMNT/var/log/journal/remote/*
 rm -f $DESTMNT/etc/udev/rules.d/70-persistent-net.rules
 
 rm -f $DESTMNT/etc/NetworkManager/system-connections/*
-sed -i '/^no-auto-default=/d' $DESTMNT/etc/NetworkManager/NetworkManager.conf 2>/dev/null
+meu_sed_ri '/^no-auto-default=/d' $DESTMNT/etc/NetworkManager/NetworkManager.conf
 
 if [[ ${FSNOVO[raiz]} ]]; then
-    sed -i "/${UUIDORIG[raiz]}/ s/${FSORIG[raiz]}/${FSNOVO[raiz]}/" $DESTMNT/etc/fstab
+    meu_sed_ri "/${UUIDORIG[raiz]}/ s/${FSORIG[raiz]}/${FSNOVO[raiz]}/" $DESTMNT/etc/fstab
     # ReiserFS: "acl,user_xattr", "user_xattr,acl", "acl", "user_xattr"
     # Outros sistemas: "defaults"
     if [[ ${FSORIG[raiz]} == reiserfs ]]; then
-        sed -ri "/${UUIDORIG[raiz]}/ s/[[:blank:]]+(acl(,user_xattr)?|user_xattr(,acl)?)[[:blank:]]+/\tdefaults\t/" \
+        meu_sed_ri "/${UUIDORIG[raiz]}/ s/[[:blank:]]+(acl(,user_xattr)?|user_xattr(,acl)?)[[:blank:]]+/\tdefaults\t/" \
             $DESTMNT/etc/fstab
     elif [[ ${FSNOVO[raiz]} == reiserfs ]]; then
-        sed -ri "/${UUIDORIG[raiz]}/ s/[[:blank:]]+defaults[[:blank:]]+/\tacl,user_xattr\t/" \
+        meu_sed_ri "/${UUIDORIG[raiz]}/ s/[[:blank:]]+defaults[[:blank:]]+/\tacl,user_xattr\t/" \
             $DESTMNT/etc/fstab
     fi
 fi
 
 if [[ $MUDAUUID ]]; then
-    sed -i "s/${UUIDORIG[raiz]}/${UUIDNOVO[raiz]}/" $DESTMNT/etc/fstab
+    meu_sed_ri "s/${UUIDORIG[raiz]}/${UUIDNOVO[raiz]}/" $DESTMNT/etc/fstab
     if [[ ${IMGINFO[esp]} ]]; then
         # 12345678 -> 1234-5678
         UUIDORIG[esp]=$(printf '%s-%s' ${UUIDORIG[esp]:0:4} ${UUIDORIG[esp]:4:4})
         UUIDNOVO[esp]=$(printf '%s-%s' ${UUIDNOVO[esp]:0:4} ${UUIDNOVO[esp]:4:4})
-        sed -i "s/${UUIDORIG[esp]}/${UUIDNOVO[esp]}/" $DESTMNT/etc/fstab
+        meu_sed_ri "s/${UUIDORIG[esp]}/${UUIDNOVO[esp]}/" $DESTMNT/etc/fstab
     fi
 
     [[ -e $DESTMNT/var/lib/dbus/machine-id && ! -L $DESTMNT/var/lib/dbus/machine-id ]] && \
@@ -339,7 +345,7 @@ if [[ $MUDAUUID ]]; then
         # Heurística: se for menor que 300 bytes, assumimos arquivo stub
         # https://fedoraproject.org/wiki/Changes/UnifyGrubConfig
         if (( $(stat -c '%s' ${DESTMNT}${ESPMNT}/EFI/$ID/grub.cfg) < 300 )); then
-            sed -i "s/${UUIDORIG[raiz]}/${UUIDNOVO[raiz]}/" ${DESTMNT}${ESPMNT}/EFI/$ID/grub.cfg
+            meu_sed_ri "s/${UUIDORIG[raiz]}/${UUIDNOVO[raiz]}/" ${DESTMNT}${ESPMNT}/EFI/$ID/grub.cfg
         else
             chroot $DESTMNT ${GRUBPRE}-mkconfig -o $ESPMNT/EFI/$ID/grub.cfg
         fi
