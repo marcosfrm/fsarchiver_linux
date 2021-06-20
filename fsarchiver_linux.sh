@@ -55,7 +55,7 @@ meu_sed_ri() {
 
 [[ $(uname -m) == x86_64 ]]    || mostraerro "Linux x86_64 requerido."
 mountpoint -q $PENMNT          || mostraerro "Pendrive não encontrado. Não use \"copytoram\"."
-[[ -r "$PENMNT/$ARQUIVOFSA" ]] || mostraerro "Arquivo de imagem inexistente."
+[[ -e "$PENMNT/$ARQUIVOFSA" ]] || mostraerro "Arquivo de imagem inexistente."
 
 echo -e "\nPendrive:\t$PENMNT\nDestino:\t$DESTMNT\n"
 
@@ -119,6 +119,7 @@ done
 
 echo
 echo "Mudar sistema de arquivos? O atual é \"${FSORIG[raiz]}\"."
+[[ ${IMGINFO[esp]} ]] && echo "(imagem UEFI: pode não inicializar com sistema de arquivos diferente)"
 select RESP in SIM NÃO; do
     case $RESP in
         SIM)
