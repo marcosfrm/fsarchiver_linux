@@ -301,15 +301,16 @@ fi
 . $DESTMNT/etc/os-release
 
 # initramfs são regerados por último, depois das mudanças de UUID/machine-id/hostname terem sido aplicadas
+# Nem sempre há correspondência entre ID e o diretório na partição EFI
 case $ID in
-    fedora|centos|ol|mageia)
+    fedora|centos|ol|rocky|mageia)
         find $DESTMNT/etc/sysconfig/network-scripts -type f -name 'ifcfg-*' -a -not -name 'ifcfg-lo' -delete
         chroot $DESTMNT dracut --regenerate-all --force
+        [[ $ID == ol ]] && ID=redhat
     ;;
     opensuse*)
         find $DESTMNT/etc/sysconfig/network -type f -name 'ifcfg-*' -a -not -name 'ifcfg-lo' -delete
         chroot $DESTMNT dracut --regenerate-all --force
-        # Usado na configuração do GRUB, sem sufixo -leap ou -tumbleweed
         ID=opensuse
     ;;
     debian|ubuntu)
@@ -328,8 +329,8 @@ echo "Instalando/configurando GRUB..."
 [[ $ID == debian || $ID == ubuntu || $ID == arch ]] && GRUBPRE=grub || GRUBPRE=grub2
 GRUBDIR=/boot/$GRUBPRE
 # BIOS/CSM apenas; em UEFI não instalamos coisa alguma; distribuições que não configuram o fallback
-# EFI/boot/bootx64.efi na ESP (Mageia 8, por exemplo) precisarão de intervenção manual; Debian por
-# padrão também não o faz, porém parece oferecer uma opção para tal fim
+# EFI/boot/bootx64.efi na ESP (Mageia, por exemplo) precisarão de intervenção manual; no Debian, quando
+# o instalador perguntar "Forçar instalação extra no caminho de mídia removível EFI?", responda "Sim"
 #
 # grub-install não funciona em distribuições com suporte ao secure boot, pois o binário grubx64.efi é
 # assinado e tem todos os drivers suportados pela distribuição embutidos; não rodar, por outro lado,
