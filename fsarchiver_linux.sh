@@ -303,10 +303,10 @@ fi
 # initramfs são regerados por último, depois das mudanças de UUID/machine-id/hostname terem sido aplicadas
 # Nem sempre há correspondência entre ID e o diretório na partição EFI
 case $ID in
-    fedora|redhat|centos|ol|rocky|mageia)
+    fedora|rhel|centos|ol|rocky|mageia)
         find $DESTMNT/etc/sysconfig/network-scripts -type f -name 'ifcfg-*' -a -not -name 'ifcfg-lo' -delete
         chroot $DESTMNT dracut --regenerate-all --force
-        [[ $ID == ol ]] && ID=redhat
+        [[ $ID == rhel || $ID == ol ]] && ID=redhat
     ;;
     sled|sles|opensuse*)
         find $DESTMNT/etc/sysconfig/network -type f -name 'ifcfg-*' -a -not -name 'ifcfg-lo' -delete
