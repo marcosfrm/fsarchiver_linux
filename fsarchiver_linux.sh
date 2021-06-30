@@ -329,14 +329,23 @@ echo "Instalando/configurando GRUB..."
 [[ $ID == debian || $ID == ubuntu || $ID == arch ]] && GRUBPRE=grub || GRUBPRE=grub2
 GRUBDIR=/boot/$GRUBPRE
 # BIOS/CSM apenas; em UEFI não instalamos coisa alguma; distribuições que não configuram o fallback
-# EFI/BOOT/BOOTX64.EFI na ESP (Mageia, por exemplo) precisarão de intervenção manual; no Debian, quando
-# o instalador perguntar "Forçar instalação extra no caminho de mídia removível EFI?", responda "Sim"
+# EFI/BOOT/BOOTX64.EFI na ESP precisarão de intervenção manual; no Debian, quando o instalador perguntar
+# "Forçar instalação extra no caminho de mídia removível EFI?", responda "Sim"; para fazê-lo depois de
+# instalado: dpkg-reconfigure grub-efi-amd64
 #
 # grub-install não funciona em distribuições com suporte ao secure boot, pois o binário grubx64.efi é
-# assinado e tem todos os drivers suportados pela distribuição embutidos; não rodar, por outro lado,
-# grub-install em distribuições *sem* suporte ao secure boot, ou seja, cujo grubx64.efi seja criado
-# localmente usando os drivers de /usr/lib/grub/x86_64-efi, significa que, caso o sistema de arquivos seja
-# alterado, o driver requerido não fará parte do binário e a inicialização provavelmente falhará
+# assinado e tem todos os drivers suportados pela distribuição embutidos; exceto no Debian, que tem um
+# patch não oficial adicionando a opção --uefi-secure-boot (padrão caso os pacotes shim-signed e
+# grub-efi-amd64-signed estejam instalados)
+#
+# Não rodar, por outro lado, grub-install em distribuições *sem* suporte ao secure boot, ou seja, cujo
+# grubx64.efi seja criado localmente usando os drivers de /usr/lib/grub/x86_64-efi, significa que, caso o
+# sistema de arquivos seja alterado, o driver requerido não fará parte do binário e a inicialização
+# provavelmente falhará
+#
+# Fedora, openSUSE e Debian usam o mesmo mecanismo:
+# grubx64.efi monolítico e assinado, que lê arquivo stub na ESP, que, através do UUID, acha sistema de
+# arquivos contendo o diretório /boot para então carregar o arquivo de configuração principal
 [[ ${IMGINFO[esp]} ]] || chroot $DESTMNT ${GRUBPRE}-install --recheck $DEV
 
 if [[ $MUDAUUID ]]; then
