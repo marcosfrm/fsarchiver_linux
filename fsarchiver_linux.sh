@@ -244,6 +244,7 @@ fi
 
 echo
 echo "Definindo configurações..."
+# util-linux >= 2.30
 DESTMNTOPTS='-o X-mount.mkdir'
 # ReiserFS precisa de opções de montagem para habilitar ACLs e XATTRs
 [[ ( ! ${FSNOVO[raiz]} && ${FSORIG[raiz]} == reiserfs ) || ${FSNOVO[raiz]} == reiserfs ]] && \
@@ -263,6 +264,7 @@ rm -f $DESTMNT/.readahead
 rm -f $DESTMNT/var/lib/ureadahead/pack
 find $DESTMNT/var/log/journal -mindepth 1 -maxdepth 1 -type d -not -name remote -exec rm -rf {} + 2>/dev/null
 rm -rf $DESTMNT/var/log/journal/remote/*
+# Recriado automaticamente no openSUSE
 rm -f $DESTMNT/etc/udev/rules.d/70-persistent-net.rules
 
 rm -f $DESTMNT/etc/NetworkManager/system-connections/*
